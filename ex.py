@@ -74,14 +74,13 @@ def show_content(FILENAME):
         return filenames_in_archive
 
 def delete_file_from_archive(FILENAME, file_to_delete, filenames_in_archive, \
-    OUT_FILENAME='deleted.zip'):
+    OUT_FILENAME='result'):
     if file_to_delete not in filenames_in_archive: 
         raise Exception('Wrong filename')
 
-    shutil.copy2(FILENAME, OUT_FILENAME)
     shutil.unpack_archive(FILENAME, 'temp')
     os.remove('temp/%s' % file_to_delete)
-    shutil.make_archive('deleted', 'zip', 'temp')
+    shutil.make_archive(OUT_FILENAME, 'zip', 'temp')
     shutil.rmtree('temp')
 
 
