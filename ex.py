@@ -2,9 +2,9 @@ import struct
 import os
 import shutil
 
-def print_eocd_structure(signature, disk_number, disk_with_eocd, num_of_entries, total_entries, \
-            cd_size, cd_offset, comment_len):
-    print('EOCD STRUCTURE')
+def print_eocd_structure(signature, disk_number, disk_with_eocd, num_of_entries, \
+    total_entries, cd_size, cd_offset, comment_len):
+    print('\nEOCD STRUCTURE')
     print('Signature:', signature)
     print('Disk number:', disk_number)
     print('Disk with EOCD:', disk_with_eocd)
@@ -73,41 +73,25 @@ def show_content(FILENAME):
 
         return filenames_in_archive
 
-def delete_file_from_archive(FILENAME, file_to_delete, filenames_in_archive, OUT_FILENAME='deleted.zip'):    
+def delete_file_from_archive(FILENAME, file_to_delete, filenames_in_archive, \
+    OUT_FILENAME='deleted.zip'):
     if file_to_delete not in filenames_in_archive: 
         raise Exception('Wrong filename')
 
     shutil.copy2(FILENAME, OUT_FILENAME)
+    shutil.unpack_archive(FILENAME, 'temp')
+    os.remove('temp/%s' % file_to_delete)
+    shutil.make_archive('deleted', 'zip', 'temp')
+    shutil.rmtree('temp')
 
-    with open(OUT_FILENAME, 'rb') as zip_file:
-        # Считываем структуру EOCD
-        zip_file.seek(-22, 2)
-        eocd_data = zip_file.read()
-        # Check the EOCD signature
-        if eocd_data[0:4] != b'\x50\x4b\x05\x06':
-            raise Exception('Invalid EOCD signature')
-    
-        signature, disk_number, disk_with_eocd, num_of_entries, total_entries, \
-            cd_size, cd_offset, comment_len = struct.unpack("<4s4H2LH", eocd_data)
-
-        print_eocd_structure(signature, disk_number, disk_with_eocd, \
-            num_of_entries, total_entries, cd_size, cd_offset, comment_len)
-        
-        current_offset = 0
-    
-        # Читаем локальные заголовочные файлы
-        for i in range(total_entries):
-            # Считываем данные из центрального каталога (CD)
-            zip_file.seek(cd_offset + current_offset)
 
 def main():
     FILENAME = 'ex.zip'
     filenames_in_archive = show_content(FILENAME)
     print('\nAll of the filenames:', filenames_in_archive)
-    file_to_delete = 'pic1.jpg'
-    #file_to_delete = input('\nEnter filename to delete: ')
+    file_to_delete = input('\nEnter filename to delete: ')
     delete_file_from_archive(FILENAME, file_to_delete, filenames_in_archive)
-    input()
+    input('\nDeliting completed. Press any key to exit...')
 
 if __name__ == '__main__':
     main()
