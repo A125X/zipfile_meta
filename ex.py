@@ -120,8 +120,10 @@ def show_content(FILENAME):
 
     print('\nAll of the filenames:', cd_content[18])
 
-def delete_file_from_archive(cd_content, file_to_delete, OUT_FILENAME='result'):
-    if file_to_delete not in filenames_in_archive: 
+def delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME='result'):
+    eocd_content, cd_content = provide_archive_info(FILENAME)
+    
+    if file_to_delete not in cd_content[18]: 
         raise Exception('Wrong filename')
 
     shutil.unpack_archive(FILENAME, 'temp')
@@ -134,7 +136,8 @@ def main():
     FILENAME = 'ex.zip'
     show_content(FILENAME)
     #file_to_delete = input('\nEnter filename to delete: ')
-    #delete_file_from_archive(provide_archive_info(FILENAME), file_to_delete, )
+    file_to_delete = 'pic1.jpg'
+    delete_file_from_archive(FILENAME, file_to_delete)
 
 if __name__ == '__main__':
     main()
