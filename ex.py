@@ -122,21 +122,50 @@ def show_content(FILENAME):
 
 def delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME='result'):
     eocd_content, cd_content = provide_archive_info(FILENAME)
-    
+
     if file_to_delete not in cd_content[18]: 
         raise Exception('Wrong filename')
 
+    number_of_entries = len(cd_content[18])
+    #if number_of_entries == 1:
+    #    raise Exception('Wrong length')
+
+    '''
     shutil.unpack_archive(FILENAME, 'temp')
     os.remove('temp/%s' % file_to_delete)
     shutil.make_archive(OUT_FILENAME, 'zip', 'temp')
     shutil.rmtree('temp')
     input('\nDeliting completed. Press any key to exit...')
+    '''
+    
+    file_to_delete_index = 0
+    
+    for i, val in enumerate(cd_content[18]):
+        if val == file_to_delete:
+            file_to_delete_index = i
+    
+    file_to_delete_size = cd_content[9][file_to_delete_index]
+    file_to_delete_offcet = cd_content[17][file_to_delete_index]
+    file_indexes_after_deleted = []
+    
+    for i, val in enumerate(cd_content[17]):
+        if val > file_to_delete_offcet:
+            file_indexes_after_deleted.append(i)
+    
+    print(file_to_delete_size, file_to_delete_offcet, file_indexes_after_deleted)
+    print_eocd_structure(eocd_content)
+
+    with open(OUT_FILENAME, 'wb') as zip_file:
+        zip_file.seek(-14, 2)
+        zip_file.write(struct.pack('H', number_of_entries-1))
+        zip_file.seek(2, 1)
+        zip_file.write(struct.pack('H', number_of_entries-1))
 
 def main():
     FILENAME = 'ex.zip'
     show_content(FILENAME)
     #file_to_delete = input('\nEnter filename to delete: ')
-    file_to_delete = 'pic1.jpg'
+    file_to_delete = 'pic5.jpg'
     delete_file_from_archive(FILENAME, file_to_delete)
 
 if __name__ == '__main__':
