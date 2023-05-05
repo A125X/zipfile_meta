@@ -131,48 +131,37 @@ def delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME='result.zip'
     if number_of_entries == 1:
         raise Exception('Wrong length')
 
-    '''
-    shutil.unpack_archive(FILENAME, 'temp')
-    os.remove('temp/%s' % file_to_delete)
-    shutil.make_archive(OUT_FILENAME, 'zip', 'temp')
-    shutil.rmtree('temp')
-    '''
-    
     file_to_delete_index = 0
     
     for i, val in enumerate(cd_content[18]):
         if val == file_to_delete:
             file_to_delete_index = i
             break
-
-    file_to_delete_size = cd_content[9][file_to_delete_index]
+    
+    if file_to_delete_index == len(cd_content[18]) - 1:
+        file_to_delete_size = eocd_content[6] - cd_content[17][file_to_delete_index]
+    else:
+        file_to_delete_size = cd_content[17][file_to_delete_index+1]-cd_content[17][file_to_delete_index]
     file_to_delete_offset = cd_content[17][file_to_delete_index]
     cd_new_offset = eocd_content[6] - file_to_delete_size
     file_to_delete_cd_offset = cd_new_offset + cd_content[-1][file_to_delete_index]
     file_to_delete_cd_offset_new = cd_new_offset + cd_content[-1][file_to_delete_index+1]
-
+    
     #changing eocd
     source = bytearray(open(FILENAME, 'rb').read())
+    
     source[-14:-12] = struct.pack('H', number_of_entries-1)
     source[-12:-10] = struct.pack('H', number_of_entries-1)
     source[-6:-2] = struct.pack('I', cd_new_offset)
-
+    
     #changing cd file offsets info
-    print(len(cd_content[-1]), len(cd_content[18]))
-    for i in range(file_to_delete_index, len(cd_content[18])):
-        if i > file_to_delete_index:
-            print(i)
-            offset = eocd_content[6] + cd_content[-1][i]
-            source[offset+42:offset+46] = \
-                struct.pack('I', cd_content[17][i]-file_to_delete_size)
+    for i in range(file_to_delete_index+1, len(cd_content[18])):
+        offset = eocd_content[6] + cd_content[-1][i]
+        print('offset %i ==' % i, cd_content[-1][i], cd_content[18][i], cd_content[17][i]-file_to_delete_size)
+        source[offset+42:offset+46] = \
+            struct.pack('I', cd_content[17][i]-file_to_delete_size)
     
     #deleting file
-    '''
-    [xxxxxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxxxxxx]
-        file_to_delete_offset^                                |
-                             |________________________________|
-                             file_to_delete_size^
-    '''
     source[file_to_delete_offset:] = source[file_to_delete_offset+file_to_delete_size:]
     #deleting cd header
     source[file_to_delete_cd_offset:] = source[file_to_delete_cd_offset_new:]
@@ -181,21 +170,15 @@ def delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME='result.zip'
     with open(OUT_FILENAME, 'wb') as zip_file:
         zip_file.write(source)
 
-    out_eocd_content, out_cd_content = provide_archive_info(OUT_FILENAME)
-
-    #print_eocd_structure(eocd_content)
-    #print_eocd_structure(out_eocd_content)
-
-    show_content(OUT_FILENAME)
-
-    input('\nDeliting completed. Press any key to exit...')
-
 def main():
     FILENAME = 'ex.zip'
+    OUT_FILENAME = 'result.zip'
     show_content(FILENAME)
     #file_to_delete = input('\nEnter filename to delete: ')
-    file_to_delete = 'pic4.jpg'
-    delete_file_from_archive(FILENAME, file_to_delete)
+    file_to_delete = 'pic1.jpg'
+    delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME)
+    show_content(OUT_FILENAME)
+    input('\nProgram finished. Press any key to exit...')
 
 if __name__ == '__main__':
     main()
