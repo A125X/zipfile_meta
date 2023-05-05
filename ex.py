@@ -145,42 +145,56 @@ def delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME='result.zip'
             file_to_delete_index = i
             break
 
-    print(file_to_delete_index)
-    
     file_to_delete_size = cd_content[9][file_to_delete_index]
     file_to_delete_offset = cd_content[17][file_to_delete_index]
     cd_new_offset = eocd_content[6] - file_to_delete_size
     file_to_delete_cd_offset = cd_new_offset + cd_content[-1][file_to_delete_index]
     file_to_delete_cd_offset_new = cd_new_offset + cd_content[-1][file_to_delete_index+1]
 
+    #changing eocd
     source = bytearray(open(FILENAME, 'rb').read())
     source[-14:-12] = struct.pack('H', number_of_entries-1)
     source[-12:-10] = struct.pack('H', number_of_entries-1)
     source[-6:-2] = struct.pack('I', cd_new_offset)
 
+    #changing cd file offsets info
+    print(len(cd_content[-1]), len(cd_content[18]))
+    for i in range(file_to_delete_index, len(cd_content[18])):
+        if i > file_to_delete_index:
+            print(i)
+            offset = eocd_content[6] + cd_content[-1][i]
+            source[offset+42:offset+46] = \
+                struct.pack('I', cd_content[17][i]-file_to_delete_size)
+    
+    #deleting file
     '''
     [xxxxxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxxxxxx]
         file_to_delete_offset^                                |
                              |________________________________|
                              file_to_delete_size^
     '''
-
     source[file_to_delete_offset:] = source[file_to_delete_offset+file_to_delete_size:]
+    #deleting cd header
     source[file_to_delete_cd_offset:] = source[file_to_delete_cd_offset_new:]
 
     #writing info to the file
     with open(OUT_FILENAME, 'wb') as zip_file:
         zip_file.write(source)
 
-    #show_content(OUT_FILENAME)
+    out_eocd_content, out_cd_content = provide_archive_info(OUT_FILENAME)
+
+    #print_eocd_structure(eocd_content)
+    #print_eocd_structure(out_eocd_content)
+
+    show_content(OUT_FILENAME)
 
     input('\nDeliting completed. Press any key to exit...')
 
 def main():
-    FILENAME = 'nonex.zip'
+    FILENAME = 'ex.zip'
     show_content(FILENAME)
-    file_to_delete = input('\nEnter filename to delete: ')
-    #file_to_delete = 'pic4.jpg'
+    #file_to_delete = input('\nEnter filename to delete: ')
+    file_to_delete = 'pic4.jpg'
     delete_file_from_archive(FILENAME, file_to_delete)
 
 if __name__ == '__main__':
