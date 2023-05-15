@@ -1,6 +1,6 @@
 import struct
 import os
-import shutil
+import json
 
 def print_eocd_structure(eocd_content):
     print('\nEOCD STRUCTURE')
@@ -112,7 +112,6 @@ def provide_archive_info(FILENAME):
 
         return eocd_content, cd_content
 
-
 def show_content(FILENAME):
     eocd_content, cd_content = provide_archive_info(FILENAME)
 
@@ -170,14 +169,53 @@ def delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME='result.zip'
     with open(OUT_FILENAME, 'wb') as zip_file:
         zip_file.write(source)
 
+def provide_json_archive_info(FILENAME, JSON_NAME='info.json'):
+    eocd_content, cd_content = provide_archive_info(FILENAME)
+
+    data = {
+    'EOCD signature': str(eocd_content[0]),
+    'EOCD disk number': eocd_content[1],
+    'Disk with EOCD' : eocd_content[2],
+    'Number of entries' : eocd_content[3],
+    'Total entries' : eocd_content[4],
+    'CD size' : eocd_content[5],
+    'CD offset' : eocd_content[6],
+    'EOCD comment length' : eocd_content[7]}
+
+    for i in range(cd_content[0]):
+        data[f'Central directory file {i+1} signature'] = cd_content[1][i]
+        data[f'Central directory file {i+1} version made by'] = cd_content[2][i]
+        data[f'Central directory file {i+1} version to extract'] = cd_content[3][i]
+        data[f'Central directory file {i+1} flag'] = cd_content[4][i]
+        data[f'Central directory file {i+1} compression method'] = cd_content[5][i]
+        data[f'Central directory file {i+1} modification time'] = cd_content[6][i]
+        data[f'Central directory file {i+1} modification date'] = cd_content[7][i]
+        data[f'Central directory file {i+1} CRC-32'] = cd_content[8][i]
+        data[f'Central directory file {i+1} compressed size'] = cd_content[9][i]
+        data[f'Central directory file {i+1} uncompressed size'] = cd_content[10][i]
+        data[f'Central directory file {i+1} filename length'] = cd_content[11][i]
+        data[f'Central directory file {i+1} additional field length'] = cd_content[12][i]
+        data[f'Central directory file {i+1} comment file length'] = cd_content[13][i]
+        data[f'Central directory file {i+1} disc number'] = cd_content[14][i]
+        data[f'Central directory file {i+1} internal file attributes'] = cd_content[15][i]
+        data[f'Central directory file {i+1} external file attributes'] = cd_content[16][i]
+        data[f'Central directory file {i+1} local file header offset'] = cd_content[17][i]
+        data[f'Central directory file {i+1} filename'] = cd_content[18][i]
+        data[f'Central directory file {i+1} additional field'] = str(cd_content[19][i])
+        data[f'Central directory file {i+1} comment file'] = cd_content[20][i]
+
+    with open(JSON_NAME, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
 def main():
     FILENAME = 'ex.zip'
-    OUT_FILENAME = 'result.zip'
+    #OUT_FILENAME = 'result.zip'
     show_content(FILENAME)
     #file_to_delete = input('\nEnter filename to delete: ')
-    file_to_delete = 'pic1.jpg'
-    delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME)
-    show_content(OUT_FILENAME)
+    #file_to_delete = 'pic1.jpg'
+    #delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME)
+    #show_content(OUT_FILENAME)
+    provide_json_archive_info(FILENAME)
     input('\nProgram finished. Press any key to exit...')
 
 if __name__ == '__main__':
