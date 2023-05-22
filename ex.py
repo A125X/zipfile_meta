@@ -207,6 +207,24 @@ def provide_json_archive_info(FILENAME, JSON_NAME='info.json'):
     with open(JSON_NAME, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
+def provide_bin_file(FILENAME, file_index):
+    eocd_content, cd_content = provide_archive_info(FILENAME)
+
+    file_offset = cd_content[17][file_index]
+
+    if file_index == len(cd_content[18]) - 1:
+        file_size = eocd_content[6] - cd_content[17][file_index]
+    else:
+        file_size = cd_content[17][file_index+1]-cd_content[17][file_index]
+
+    source = bytearray(open(FILENAME, 'rb').read())
+
+    bin_file = source[file_offset:file_offset+file_size]
+    return bin_file
+
+def calculate_crc(FILENAME, file_index=0):
+    bin_file = provide_bin_file(FILENAME, file_index)
+
 def main():
     FILENAME = 'ex.zip'
     #OUT_FILENAME = 'result.zip'
@@ -215,7 +233,7 @@ def main():
     #file_to_delete = 'pic1.jpg'
     #delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME)
     #show_content(OUT_FILENAME)
-    provide_json_archive_info(FILENAME)
+    #provide_json_archive_info(FILENAME)
     input('\nProgram finished. Press any key to exit...')
 
 if __name__ == '__main__':
