@@ -1,6 +1,7 @@
 import struct
 import os
 import json
+import sys
 
 def print_eocd_structure(eocd_content):
     print('\nEOCD STRUCTURE')
@@ -24,7 +25,10 @@ def print_cd_info(cd_content):
         print('Compression method:', cd_content[5][i])
         print('Modification time:', cd_content[6][i])
         print('Modification date:', cd_content[7][i])
-        print('CRC-32:', cd_content[8][i])
+        print('CRC-32: ', end='')
+        for my_byte in cd_content[8][i]:
+            print(f'{my_byte:0>8b}', end=' ')
+        print()
         print('Compressed size:', cd_content[9][i])
         print('Uncompressed size:', cd_content[10][i])
         print('Filename length:', cd_content[11][i])
@@ -85,7 +89,7 @@ def provide_archive_info(FILENAME):
             compression_method.append(struct.unpack('H', zip_file.read(2))[0])
             modification_time.append(struct.unpack('H', zip_file.read(2))[0])
             modification_date.append(struct.unpack('H', zip_file.read(2))[0])
-            crc_32.append(struct.unpack('I', zip_file.read(4))[0])
+            crc_32.append(zip_file.read(4))
             compressed_size.append(struct.unpack('I', zip_file.read(4))[0])
             uncompressed_size.append(struct.unpack('I', zip_file.read(4))[0])
             filename_length.append(struct.unpack('H', zip_file.read(2))[0])
@@ -207,7 +211,7 @@ def provide_json_archive_info(FILENAME, JSON_NAME='info.json'):
     with open(JSON_NAME, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-def provide_bin_file(FILENAME, file_index):
+def provide_byte_file(FILENAME, file_index):
     eocd_content, cd_content = provide_archive_info(FILENAME)
 
     file_offset = cd_content[17][file_index]
@@ -222,8 +226,30 @@ def provide_bin_file(FILENAME, file_index):
     bin_file = source[file_offset:file_offset+file_size]
     return bin_file
 
-def calculate_crc(FILENAME, file_index=0):
-    bin_file = provide_bin_file(FILENAME, file_index)
+def calculate_crc(bin_file):
+    '''
+    crc_table = []
+
+    for i in range(256):
+        crc = i
+        for j in range(8):
+            crc = (crc >> 1) ^ b'0xEDB88320UL' if crc & 1 else crc >> 1
+
+        crc_table.append(crc)
+
+    crc = b'0xFFFFFFFFUL'
+
+    for i in range(len):
+        crc = crc_table[(crc ^ bin_file.append(value)) & 0xFF] ^ (crc >> 8)
+
+    return crc ^ b'0xFFFFFFFFUL'
+    '''
+    
+def provide_crc_of_file(FILENAME, file_index=0):
+    byte_file = provide_byte_file(FILENAME, file_index)
+    bin_file = bin(int.from_bytes(byte_file ^ bytearray('0xFFFFFFFFUL'), byteorder=sys.byteorder))
+    print(bin_file)
+    return calculate_crc(bin_file)
 
 def main():
     FILENAME = 'ex.zip'
@@ -234,6 +260,7 @@ def main():
     #delete_file_from_archive(FILENAME, file_to_delete, OUT_FILENAME)
     #show_content(OUT_FILENAME)
     #provide_json_archive_info(FILENAME)
+    print(provide_crc_of_file(FILENAME))
     input('\nProgram finished. Press any key to exit...')
 
 if __name__ == '__main__':
