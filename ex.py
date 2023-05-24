@@ -247,7 +247,7 @@ def calculate_crc(bin_file):
     
 def provide_crc_of_file(FILENAME, file_index=0):
     byte_file = provide_byte_file(FILENAME, file_index)
-    bin_file = bin(int.from_bytes(byte_file ^ bytearray('0xFFFFFFFFUL'), byteorder=sys.byteorder))
+    bin_file = bin(int.from_bytes(byte_file, byteorder=sys.byteorder))
     print(bin_file)
     return calculate_crc(bin_file)
 
