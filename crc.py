@@ -1,17 +1,25 @@
 import zlib
 import struct
+from time import time
+
+def decorator_timer(func):
+    def wrapper(*args, **kwargs):
+        t1 = time()
+        result = func(*args, **kwargs)
+        return result, time()-t1
+
+    return wrapper
 
 def binary(FILENAME):
     bin_file = bytearray(open(FILENAME, 'rb').read())
-    print(bin_file)
     return bin_file
+
+@decorator_timer
 def answer(bin_file):
     sum = zlib.crc32(bin_file)
     return sum
-def crc(bin_file):
-    polynom=100000100110000010001110110110111
-    return
 
+@decorator_timer
 def calculate_crc32(data):
     # Pre-compute the table of CRC32 remainders using the polynomial 0xEDB88320
     crc_table = [0] * 256
@@ -33,10 +41,15 @@ def calculate_crc32(data):
 def main():
     FILENAME = 'test.txt'
     BIN_FILE=binary(FILENAME)
-    print('Control sim is equal to ')
-    print(answer(BIN_FILE))
-    print('\nOur answer is ')
-    print(calculate_crc32(BIN_FILE))
+    
+    result, time = answer(BIN_FILE)
+    print('Control sum is:', result)
+    print('Control time:', time)
+    
+    result, time = calculate_crc32(BIN_FILE)
+    print('\nOur answer is: ', result)
+    print('Answer time:', time)
+
     input('\nProgram finished. Press any key to exit...')
 
 if __name__ == '__main__':
