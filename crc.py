@@ -67,7 +67,7 @@ def main():
     print('Control time:', time)
     
     #result, time = calculate_crc32(BIN_FILE, int(input('Enter number of threads: ')))
-    result, time = calculate_crc32(BIN_FILE, 1)
+    result, time = calculate_crc32(BIN_FILE, 2)
     print('\nOur answer is: ', result)
     print('Answer time:', time)
 
