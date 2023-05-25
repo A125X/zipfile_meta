@@ -20,20 +20,13 @@ def answer(bin_file):
     sum = zlib.crc32(bin_file)
     return sum
 
-def calculate_crc(data, table, crc):
+def calculate_crc(data, table, crc, results):
     for byte in data:
         crc = table[(crc ^ byte) & 0xFF] ^ (crc >> 8)
-    return crc
+    results.append(crc)
 
 @decorator_timer
 def calculate_crc32(data, threads_number):
-    '''
-    # Calculate the CRC32 value of the provided data
-    crc = 0xFFFFFFFF
-    for byte in data:
-        crc = crc_table[(crc ^ byte) & 0xFF] ^ (crc >> 8)
-    return crc ^ 0xFFFFFFFF
-    '''
     # Pre-compute the table of CRC32 remainders using the polynomial 0xEDB88320
     table = [0] * 256
     for i in range(256):
@@ -48,18 +41,21 @@ def calculate_crc32(data, threads_number):
     crc = 0xFFFFFFFF
     chunk_size = len(data) // threads_number
     threads = []
+    results = []
     for i in range(threads_number):
         chunk_start = i * chunk_size
         chunk_end = (i + 1) * chunk_size
         chunk_data = data[chunk_start:chunk_end]
-        #thread = threading.Thread(target=calculate_crc, args=(chunk_data, table, crc))
-        #thread.start()
-        #threads.append(thread)
+        thread = threading.Thread(target=calculate_crc, args=(chunk_data, table, crc, results))
+        thread.start()
+        threads.append(thread)
 
+    for thread in threads:
+        thread.join()
 
-    #for thread in threads:
-    #    thread.join()
-    crc = calculate_crc(data, table, crc)
+    for n in results:
+        print(n ^ 0xFFFFFFFF)
+
     return crc ^ 0xFFFFFFFF
 
 def main():
