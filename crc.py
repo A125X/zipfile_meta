@@ -1,7 +1,7 @@
 import zlib
-import struct
 import threading
 from time import time
+import sys
 
 def decorator_timer(func):
     def wrapper(*args, **kwargs):
@@ -25,8 +25,14 @@ def calculate_crc(data, table, crc, results):
         crc = table[(crc ^ byte) & 0xFF] ^ (crc >> 8)
     results.append(crc)
 
+def access_bit(data, num):
+    base = int(num // 8)
+    shift = int(num % 8)
+    return (data[base] >> shift) & 0x1
+
 @decorator_timer
 def calculate_crc32(data, threads_number):
+    '''
     # Pre-compute the table of CRC32 remainders using the polynomial 0xEDB88320
     table = [0] * 256
     for i in range(256):
@@ -57,9 +63,32 @@ def calculate_crc32(data, threads_number):
         print(n ^ 0xFFFFFFFF)
 
     return crc ^ 0xFFFFFFFF
+    '''
+    data = [access_bit(data,i) for i in range(len(data)*8)]
+    
+    poly = [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, \
+        0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1]
+
+    div = []
+    for i in range(len(data)-33):
+        while data[i] == 0:
+            i = i + 1
+
+            if i >= len(data):
+                return 0
+
+            if i > len(data)-33:
+                div = data[len(data)-33:]
+                break
+
+        for j in range(33):
+            data[i+j] = data[i+j] ^ poly[j]
+            div[j] = data[i+j]
+
+    return div
 
 def main():
-    FILENAME = 'test.txt'
+    FILENAME = 'help.txt'
     BIN_FILE=binary(FILENAME)
     
     result, time = answer(BIN_FILE)
