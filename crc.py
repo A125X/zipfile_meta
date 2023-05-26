@@ -70,17 +70,18 @@ def calculate_crc32(data, threads_number):
         0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1]
 
     div = []
-    for i in range(len(data)-33):
+    i = 0
+    while(True):
         while data[i] == 0:
             i = i + 1
-
+    
             if i >= len(data):
                 return 0
-
-            if i > len(data)-33:
+    
+            if i >= len(data)-33:
                 div = data[len(data)-33:]
-                break
-
+                return div
+    
         for j in range(33):
             data[i+j] = data[i+j] ^ poly[j]
             div[j] = data[i+j]
