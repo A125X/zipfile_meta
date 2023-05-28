@@ -1,8 +1,5 @@
-import zlib
 import threading
 from time import time
-import sys
-import crcmod
 
 def decorator_timer(func):
     def wrapper(*args, **kwargs):
@@ -11,21 +8,101 @@ def decorator_timer(func):
         return result, time()-t1
 
     return wrapper
-
-#Такую форму используем в calculate_crc32. 
+ 
 def binary(FILENAME):
     bin_file = bytearray(open(FILENAME, 'rb').read())
     return bin_file
 
-def calculate_crc(data, table, crc, results):
+def int_to_bin(n):
+    f=[0]*8
+    for i in range(8):
+        if n>=(2**(7-i)):
+            n=n-2**(7-i)
+            f[i]=1
+    return f
+
+def bin_to_int(f):
+    n=0
+    for i in range(8):
+        if f[i] == 1:
+            n=n+2**(7-i)
+    return n
+
+def sum(f, g):
+    if len(f) != len(g):
+        print('Wrong data')
+        return -1
+    else:
+        for i in range(len(f)):
+            f[i] = f[i]^g[i]
+        return f
+
+def mod(data, poly):
+        deg = len(poly)
+        div = [None]*(deg-1)
+        i = 0
+        while(True):
+            while (data[i] == 0):
+                i = i + 1
+                if i == (len(data)):
+                    break
+    
+            if i >= len(data):
+                return [0]*8
+    
+            if i > len(data)-deg:
+                div = data[len(data)-deg+1:]
+                return div
+            for j in range(deg):
+                data[i+j] = data[i+j] ^ poly[j]
+
+def shift(f, n, m):
+    h = [0]*m
+    for i in range(len(f)):
+        h[m-n-1-i] = f[len(f)-1-i]
+    return h
+ 
+def polymult(f, g):
+    d = len(f)+len(g)-1
+    f = shift(f, 0 ,d)
+    h = [0]*d
+
+    for i in range(len(g)):
+        if g[len(g)-1-i] == 1:
+            h = sum(h, shift(f, i, d))
+    return h
+
+def polypow(f, n):
+    g = f
+    for i in range(1, n):
+        f = polymult(f, g)
+    return f
+
+def glue(results, lenght, threads_number, poly, remainder):
+    for i in range(threads_number):
+        results[i]=int_to_bin(results[i])
+    f=[0]*(remainder+1)
+    f[0]=1
+    g=[0]*(lenght+1)
+    g[0]=1
+    f=mod(f,poly)
+    g=mod(g,poly)
+
+    for i in range(2, threads_number):
+        results[threads_number-1-i]=mod(polymult(results[threads_number-1-i],polypow(g,i-1)),poly)
+    ans=[0]*8
+    for i in range(threads_number-1):
+        ans=sum(ans,results[i])
+    ans=sum(results[threads_number-1],mod(polymult(ans,f),poly))
+    return bin_to_int(ans)
+
+def calculate_crc(data, table, crc, results, i):
     for byte in data:
         crc = table[(crc ^ byte) & 0xFF] ^ (crc >> 8)
-    results.append(crc)
+    results.append((crc, i))
 
-#Пока что это функция возвращает только 0. Но главное не это
-#Главное, что эта функция записывает в results CRC частей
 @decorator_timer
-def calculate_crc8(data, threads_number):
+def calculate_crc8(data, threads_number, poly):
     table = [0x00, 0x07, 0x0e, 0x09, 0x1c, 0x1b, 0x12, 0x15, 
              0x38, 0x3f, 0x36, 0x31, 0x24, 0x23, 0x2a, 0x2d, 
              0x70, 0x77, 0x7e, 0x79, 0x6c, 0x6b, 0x62, 0x65, 
@@ -61,6 +138,7 @@ def calculate_crc8(data, threads_number):
     
     crc = 0
     chunk_size = len(data) // threads_number
+    remainder = len(data) % threads_number
     threads = []
     results = []
     for i in range(threads_number):
@@ -71,78 +149,26 @@ def calculate_crc8(data, threads_number):
             chunk_start = i * chunk_size
             chunk_end = (i + 1) * chunk_size
             chunk_data = data[chunk_start:chunk_end]
-        thread = threading.Thread(target=calculate_crc, args=(chunk_data, table, crc, results))
+        thread = threading.Thread(
+            target=calculate_crc, 
+            args=(chunk_data, table, crc, results, i)
+            )
         thread.start()
         threads.append(thread)
         for thread in threads:
             thread.join()
 
     print(results)
-    return
+    crc=glue(results, chunk_size, threads_number, poly, remainder)
+    return crc
 
-#Эта функция суммирует многочлены одной длины.
-def sum(f, g):
-    if len(f) != len(g):
-        print('Wrong data')
-        return -1
-    else:
-        for i in range(len(f)):
-            f[i] = f[i]^g[i]
-        return f
-
-#Деление с остатком data на poly.
-def mod(data, poly):
-        deg = len(poly)
-        div = [None]*(deg-1)
-        i = 0
-        while(True):
-            while data[i] == 0:
-                i = i + 1
-    
-            if i >= len(data):
-                return 0
-    
-            if i > len(data)-deg:
-                div = data[len(data)-deg+1:]
-                return div
-            for j in range(deg):
-                data[i+j] = data[i+j] ^ poly[j]
-
-#Функция умножает многочлен f на x^n и делает его запись длины m.
-#По сути мы просто сдвигаем на n символов влево.
-def shift(f, n, m):
-    h = [0]*m
-    for i in range(len(f)):
-        h[m-n-1-i] = f[len(f)-1-i]
-    return h
-
-#Произведение многочленов. Алгоритм основан на том, что это просто билинейная формаю 
-def polymult(f, g):
-    d = len(f)+len(g)-1
-    f = shift(f, 0 ,d)
-    h = [0]*d
-
-    for i in range(len(g)):
-        if g[len(g)-1-i] == 1:
-            h = sum(h, shift(f, i, d))
-    return h
-
-#Наконец, если умеем умножать, то легко возведем в степень
-def polypow(f, n):
-    g = f
-    for i in range(1, n):
-        f = polymult(f, g)
-    return f
-
-#ВСЕ! Написаны все функции, которые мне нужны, чтобы собрать crc из кусочков. 
-#Вроде я проверил, они правильно работают
 def main():
-    FILENAME = 'help.txt'
+    FILENAME = 'test.txt'
     BIN_FILE = binary(FILENAME)
-    data =[0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]
     poly = [1, 0, 0, 0, 0, 0, 1, 1, 1]
-    result, time = calculate_crc8(BIN_FILE, 2)
+    n = int(input('Enter number of threads '))
+    result , time = calculate_crc8(BIN_FILE, n, poly)
+    print('CRC8 = ', result, 'Time = ', time)
     input('\nProgram finished. Press any key to exit...')
-
 if __name__ == '__main__':
     main()
