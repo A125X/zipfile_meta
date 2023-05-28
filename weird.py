@@ -14,24 +14,26 @@ def binary(FILENAME):
     return bin_file
 
 def int_to_bin(n):
-    f=[0]*8
+    if n>255 or n<0:
+        raise Exception('Data is not 8-bit number')
+    f = [0]*8
     for i in range(8):
-        if n>=(2**(7-i)):
-            n=n-2**(7-i)
-            f[i]=1
+        if n >= (2**(7-i)):
+            n = n-2**(7-i)
+            f[i] = 1
     return f
 
 def bin_to_int(f):
-    n=0
+    n = 0
     for i in range(8):
         if f[i] == 1:
-            n=n+2**(7-i)
+            n = n+2**(7-i)
+
     return n
 
 def sum(f, g):
     if len(f) != len(g):
-        print('Wrong data')
-        return -1
+        raise Exception('Operation not determined')
     else:
         for i in range(len(f)):
             f[i] = f[i]^g[i]
@@ -47,7 +49,7 @@ def mod(data, poly):
                 if i == (len(data)):
                     break
     
-            if i >= len(data):
+            if i >= len(data): 
                 return [0]*8
     
             if i > len(data)-deg:
@@ -63,7 +65,7 @@ def shift(f, n, m):
     return h
  
 def polymult(f, g):
-    d = len(f)+len(g)-1
+    d = len(f) + len(g) - 1
     f = shift(f, 0 ,d)
     h = [0]*d
 
@@ -80,27 +82,27 @@ def polypow(f, n):
 
 def glue(results, lenght, threads_number, poly, remainder):
     for i in range(threads_number):
-        results[i]=int_to_bin(results[i])
-    f=[0]*(remainder+1)
-    f[0]=1
-    g=[0]*(lenght+1)
-    g[0]=1
-    f=mod(f,poly)
-    g=mod(g,poly)
+        results[i] = int_to_bin(results[i])
+    f = [0]*(8*remainder+1)
+    f[0] = 1
+    g = [0]*(8*lenght+1)
+    g[0] = 1
+    f = mod(f, poly)
+    g = mod(g, poly)
 
     for i in range(2, threads_number):
-        results[threads_number-1-i]=mod(polymult(results[threads_number-1-i],polypow(g,i-1)),poly)
-    ans=[0]*8
+        results[threads_number-1-i] = mod(polymult(results[threads_number-1-i], polypow(g, i-1)), poly)
+    ans = [0]*8
     for i in range(threads_number-1):
-        ans=sum(ans,results[i])
-    ans=sum(results[threads_number-1],mod(polymult(ans,f),poly))
+        ans = sum(ans, results[i])
+    ans = sum(results[threads_number-1], mod(polymult(ans, f), poly))
     return bin_to_int(ans)
 
 def calculate_crc(data, table, crc, results, i):
     for byte in data:
         crc = table[(crc ^ byte) & 0xFF] ^ (crc >> 8)
-    results.append((crc, i))
-
+    results.append([crc, i])
+#Надо на всякий случай отсортировать список
 @decorator_timer
 def calculate_crc8(data, threads_number, poly):
     table = [0x00, 0x07, 0x0e, 0x09, 0x1c, 0x1b, 0x12, 0x15, 
@@ -138,7 +140,7 @@ def calculate_crc8(data, threads_number, poly):
     
     crc = 0
     chunk_size = len(data) // threads_number
-    remainder = len(data) % threads_number
+    remainder = len(data) - chunk_size*(threads_number-1)
     threads = []
     results = []
     for i in range(threads_number):
@@ -151,15 +153,18 @@ def calculate_crc8(data, threads_number, poly):
             chunk_data = data[chunk_start:chunk_end]
         thread = threading.Thread(
             target=calculate_crc, 
-            args=(chunk_data, table, crc, results, i)
-            )
+            args=(chunk_data, table, crc, results, i))
         thread.start()
         threads.append(thread)
         for thread in threads:
             thread.join()
 
-    print(results)
-    crc=glue(results, chunk_size, threads_number, poly, remainder)
+    #print(results)
+    results.sort(key=lambda x: x[1])
+    results = [n[0] for n in results]
+    #print(results)
+
+    crc = glue(results, chunk_size, threads_number, poly, remainder)
     return crc
 
 def main():
