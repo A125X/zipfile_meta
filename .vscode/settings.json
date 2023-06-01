@@ -1,0 +1,5 @@
+{
+    "editor.wordWrap": "on",
+    "editor.suggest.showStatusBar": true,
+    "workbench.statusBar.visible": true
+}
