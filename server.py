@@ -1,29 +1,37 @@
 import socket
-import os 
-import zlib  
+import sys
+import crc
+
+def recvall(sock):
+    BUFF_SIZE = 4096 # 4 KiB
+    data = b''
+    while True:
+        part = sock.recv(BUFF_SIZE)
+        data += part
+        if len(part) < BUFF_SIZE:
+            # either 0 or end of data
+            break
+    return data
 
 def run_server():
-    # Создаем сокет и начинаем слушать порт 
-    HOST = '' 
-    PORT = 12345 
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-    server_socket.bind((HOST, PORT)) 
-    server_socket.listen(1)  
-    # Принимаем соединение от клиента 
-    client_socket, addr = server_socket.accept()  
-    # Получаем файл от клиента 
-    data = client_socket.recv(1024) 
-    file_content = data 
-    while data: 
-        data = client_socket.recv(1024) 
-        file_content += data  
-        # Вычисляем CRC файла 
-        crc = zlib.crc32(file_content)  
-        # Отправляем CRC клиенту 
-        client_socket.sendall(crc.to_bytes(4, byteorder='big'))  
+    HOST = ''
+    PORT = 12345
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind((HOST, PORT))
+    server_socket.listen(10)
 
-    # Закрываем соединение 
-    client_socket.close() 
+    while True:
+        client_socket, addr = server_socket.accept()  
+        print('break')
+        file_content = recvall(client_socket)
+        print('point')
+
+        poly = [1, 0, 0, 0, 0, 0, 1, 1, 1]
+        n = 6
+        file_crc , time = crc.calculate_crc8(file_content, n, poly)
+        client_socket.sendall(file_crc.to_bytes(4, byteorder=sys.byteorder))
+        client_socket.close() 
+
     server_socket.close()
 
 def main():
