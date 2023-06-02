@@ -1,6 +1,7 @@
 import socket
 import sys
 import crc
+import threading
 
 def recvall(sock):
     BUFF_SIZE = 4096 # 4 KiB
@@ -13,26 +14,29 @@ def recvall(sock):
             break
     return data
 
+def do(sock):
+    print('Connect')
+    file_content = recvall(sock)
+    print('File received')
+
+    poly = [1, 0, 0, 0, 0, 0, 1, 1, 1]
+    n = 6
+    file_crc , time = crc.calculate_crc8(file_content, n, poly)
+    sock.sendall(file_crc.to_bytes(4, byteorder=sys.byteorder))
+    sock.close() 
+    
 def run_server():
-    HOST = ''
+    HOST = 'localhost'
     PORT = 12345
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((HOST, PORT))
     server_socket.listen(10)
-
+    print('Working...')
     while True:
-        client_socket, addr = server_socket.accept()  
-        print('break')
-        file_content = recvall(client_socket)
-        print('point')
+        client_socket, addr = server_socket.accept()
+        thread = threading.Thread(target=do, args=(client_socket,), daemon=True)
+        thread.start()
 
-        poly = [1, 0, 0, 0, 0, 0, 1, 1, 1]
-        n = 6
-        file_crc , time = crc.calculate_crc8(file_content, n, poly)
-        client_socket.sendall(file_crc.to_bytes(4, byteorder=sys.byteorder))
-        client_socket.close() 
-
-    server_socket.close()
 
 def main():
     text='hello world'.encode('utf-8')
